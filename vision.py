@@ -5,42 +5,6 @@ import math
 # Load YOLOv5 model
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 
-# Load an image
-image_path = '/Users/reetvikchatterjee/Desktop/living-room-article-chair-22.jpg'
-image = Image.open(image_path)
-
-# Perform inference
-results = model(image)
-
-# Extract detected objects and their coordinates
-detections = results.pandas().xyxy[0]  # Pandas DataFrame of detections
-
-# Analyze positions and provide directions
-image_width, image_height = image.size
-object_positions = {}
-
-# Create a draw object for annotating the image
-draw = ImageDraw.Draw(image)
-font = ImageFont.load_default()  # Use a default font
-
-for _, obj in detections.iterrows():
-    obj_name = obj['name']
-    xmin, ymin, xmax, ymax = obj[['xmin', 'ymin', 'xmax', 'ymax']]
-    center_x = (xmin + xmax) / 2
-    center_y = (ymin + ymax) / 2
-
-    if obj_name in object_positions:
-        object_positions[obj_name].append((center_x, center_y))
-    else:
-        object_positions[obj_name] = [(center_x, center_y)]
-
-    # Annotate the image
-    draw.rectangle([xmin, ymin, xmax, ymax], outline="red", width=3)
-    draw.text((xmin, ymin), obj_name, fill="white", font=font)
-
-# Display the annotated image
-image.show()
-
 def get_compact_directions(start_x, start_y, end_x, end_y):
     dx = end_x - start_x
     dy = start_y - end_y  # Reverse y-axis for intuitive directions
@@ -78,25 +42,48 @@ def get_compact_directions(start_x, start_y, end_x, end_y):
     
     return directions
 
-# Respond to user input
-while True:
-    user_input = input("What would you like to find? (or 'exit' to quit) ").strip().lower()
+def process_image(image_path):
+    image = Image.open(image_path)
+    results = model(image)
+    detections = results.pandas().xyxy[0]
+    
+    image_width, image_height = image.size
+    object_positions = {}
 
-    if user_input == 'exit':
-        break
+    for _, obj in detections.iterrows():
+        obj_name = obj['name']
+        xmin, ymin, xmax, ymax = obj[['xmin', 'ymin', 'xmax', 'ymax']]
+        center_x = (xmin + xmax) / 2
+        center_y = (ymin + ymax) / 2
 
-    if user_input in object_positions:
-        print(f"Directions to the nearest {user_input}:")
-        
-        # Find the nearest object of the requested type
-        start_x, start_y = image_width / 2, image_height  # Starting from bottom center
-        nearest_obj = min(object_positions[user_input], key=lambda pos: math.sqrt((pos[0] - start_x)**2 + (pos[1] - start_y)**2))
-        
-        directions = get_compact_directions(start_x, start_y, nearest_obj[0], nearest_obj[1])
-        print(directions)
-    else:
-        detected_objects = ", ".join(object_positions.keys())
-        if detected_objects:
-            print(f"{user_input.capitalize()} not found. Detected objects: {detected_objects}.")
+        if obj_name in object_positions:
+            object_positions[obj_name].append((center_x, center_y))
         else:
-            print("No objects were detected in the image.")
+            object_positions[obj_name] = [(center_x, center_y)]
+
+    return object_positions, image_width, image_height
+
+def main():
+    image_path = '/Users/reetvikchatterjee/Desktop/living-room-article-chair-22.jpg'
+    object_positions, image_width, image_height = process_image(image_path)
+
+    print("Detected objects:", ", ".join(object_positions.keys()))
+
+    while True:
+        user_input = input("What would you like to find? (or 'exit' to quit) ").strip().lower()
+
+        if user_input == 'exit':
+            break
+
+        if user_input in object_positions:
+            start_x, start_y = image_width / 2, image_height  # Starting from bottom center
+            nearest_obj = min(object_positions[user_input], key=lambda pos: math.sqrt((pos[0] - start_x)**2 + (pos[1] - start_y)**2))
+            
+            directions = get_compact_directions(start_x, start_y, nearest_obj[0], nearest_obj[1])
+            print(f"Directions to the nearest {user_input}:")
+            print(directions)
+        else:
+            print(f"{user_input.capitalize()} not found. Detected objects: {', '.join(object_positions.keys())}.")
+
+if __name__ == "__main__":
+    main()
