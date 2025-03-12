@@ -9,7 +9,7 @@ relationships = {
     1: {"name": "Akshay Kumar", "relationships": "Friend"}
 }
 
-def recognize_faces(frame, speak_func):
+def recognize_faces(frame, speak_func, recognize=False):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
     
@@ -19,14 +19,15 @@ def recognize_faces(frame, speak_func):
         
         if confidence > 50: 
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            print(confidence)
+            #print(confidence)
             
             if id in relationships:
                 name = relationships[id]["name"]
                 relation = relationships[id]["relationships"]
                 cv2.putText(frame, f"{name}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                 cv2.putText(frame, f"Relationship: {relation}", (x, y-30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                speak_func(f"Recognized {name}, who is your {relation}.")
+                if recognize:
+                    speak_func(f"Recognized {name}, who is your {relation}.")
             else:
                 cv2.putText(frame, "Unknown", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
         else:

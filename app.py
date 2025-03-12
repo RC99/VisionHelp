@@ -7,30 +7,39 @@ from vision import model as vision_model, get_compact_directions
 import math
 import warnings
 import pyttsx3
-import threading
+import queue
+from recognition import recognize_faces
 
 warnings.filterwarnings("ignore")
 
 # Initialize text-to-speech engine
 engine = pyttsx3.init()
+speech_queue = queue.Queue()
 
 def speak(text):
-    threading.Thread(target=engine.say, args=(text,)).start()
-    engine.runAndWait()
+    """Queue speech requests instead of calling runAndWait() in multiple threads."""
+    speech_queue.put(text)
 
 # Main video processing loop
-video_path = '/Users/reetvikchatterjee/Desktop/VisionHelp/testcouch.mp4'  # Replace with your video path
+video_path = '/Users/reetvikchatterjee/Desktop/VisionHelp/testfr.mp4'  # Replace with your video path
 cap = cv2.VideoCapture(video_path)
 
 def get_threshold(object_name, default_threshold=20):
     return object_thresholds.get(object_name, default_threshold)
 
-# Frame skip settings
 FRAME_SKIP = 3  # Process every 3rd frame
 frame_count = 0
-
-# Detection confidence threshold
 DETECTION_THRESHOLD = 0.7  # 70% confidence threshold
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+recognizer = cv2.face.LBPHFaceRecognizer_create()
+recognizer.read("trained_model.yml")
+
+relationships = {
+    1: {"name": "Akshay Kumar", "relationships": "Friend"}
+}
+
+v_pressed = False
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -51,7 +60,6 @@ while cap.isOpened():
     results = near_model(frame)
     close_objects, all_objects = check_proximity(depth_array, results, get_threshold)
 
-    # Display results on frame
     for obj in results.xyxy[0]:
         x1, y1, x2, y2, conf, cls = obj.tolist()
         if conf < DETECTION_THRESHOLD:
@@ -66,16 +74,31 @@ while cap.isOpened():
     if close_objects:
         warning_message = f"Warning: {', '.join(set(close_objects))} nearby!"
         cv2.putText(frame, warning_message, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
-        print(warning_message)  # Print the warning message
-        speak(warning_message)  # Speak the warning message
+        print(warning_message)
+        speak(warning_message)
+
+    # Process frame for face recognition
+    recognize = False
+    if v_pressed:
+        recognize = True
+        v_pressed = False  # Reset v_pressed after use
+    frame = recognize_faces(frame, speak, recognize)
 
     cv2.imshow('Video', frame)
+
+    # Process speech queue in the main loop
+    while not speech_queue.empty():
+        try:
+            text_to_speak = speech_queue.get_nowait()
+            engine.say(text_to_speak)
+            engine.runAndWait()
+        except Exception as e:
+            print(f"Speech Error: {e}")
 
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
     elif key == ord('c'):
-        # Process current frame for object directions
         image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         results = vision_model(image)
         detections = results.pandas().xyxy[0]
@@ -84,11 +107,12 @@ while cap.isOpened():
 
         for _, obj in detections.iterrows():
             if obj['confidence'] < DETECTION_THRESHOLD:
-                continue  # Skip objects below the confidence threshold
+                continue
             obj_name = obj['name']
             xmin, ymin, xmax, ymax = obj[['xmin', 'ymin', 'xmax', 'ymax']]
             center_x = (xmin + xmax) / 2
             center_y = (ymin + ymax) / 2
+
             if obj_name in object_positions:
                 object_positions[obj_name].append((center_x, center_y))
             else:
@@ -105,6 +129,7 @@ while cap.isOpened():
             if user_input in object_positions:
                 start_x, start_y = image_width / 2, image_height
                 nearest_obj = min(object_positions[user_input], key=lambda pos: math.sqrt((pos[0] - start_x)**2 + (pos[1] - start_y)**2))
+
                 directions = get_compact_directions(start_x, start_y, nearest_obj[0], nearest_obj[1])
                 print(f"Directions to the nearest {user_input}:")
                 print(directions)
@@ -113,6 +138,10 @@ while cap.isOpened():
                 not_found_message = f"{user_input.capitalize()} not found."
                 print(not_found_message)
                 speak(not_found_message)
+    elif key == ord('v'):
+        v_pressed = True
+    elif key != ord('v'):
+        pass
 
 cap.release()
 cv2.destroyAllWindows()
