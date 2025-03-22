@@ -15,7 +15,7 @@ def get_destination_coordinates(destination_name):
     return location.latitude, location.longitude
 
 def get_directions(start_lat, start_lon, end_lat, end_lon):
-    api_key = "AIzaSyCtusLMNfY0A8mRJeTJIZQ2xIteR3msdOI"
+    api_key = ""
     url = f"https://maps.googleapis.com/maps/api/directions/json?origin={start_lat},{start_lon}&destination={end_lat},{end_lon}&key={api_key}"
     response = requests.get(url)
     data = response.json()
