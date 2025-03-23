@@ -3,15 +3,19 @@ import pyttsx3
 import requests
 from geopy.geocoders import Nominatim
 import re
+import os
 
 def get_current_location():
     geolocator = Nominatim(user_agent="my_app")
     location = geolocator.geocode("Los Angeles")
+    print(location)
     return location.latitude, location.longitude
 
 def get_destination_coordinates(destination_name):
     geolocator = Nominatim(user_agent="my_app")
+    print(destination_name)
     location = geolocator.geocode(destination_name)
+    print(location)
     return location.latitude, location.longitude
 
 def get_directions(start_lat, start_lon, end_lat, end_lon):
@@ -19,6 +23,7 @@ def get_directions(start_lat, start_lon, end_lat, end_lon):
     url = f"https://maps.googleapis.com/maps/api/directions/json?origin={start_lat},{start_lon}&destination={end_lat},{end_lon}&key={api_key}"
     response = requests.get(url)
     data = response.json()
+    print(data)
     return data['routes'][0]['legs'][0]['steps']
 
 def speak_directions(directions):
@@ -29,8 +34,18 @@ def speak_directions(directions):
         engine.say(instruction)
         engine.runAndWait()
 
-# Main loop
-cap = cv2.VideoCapture('testcouch.mp4')
+# Validate video path
+video_path = '/Users/reetvikchatterjee/Desktop/VisionHelp/testcouch.mp4'
+if not os.path.exists(video_path):
+    print("Error: Video path is incorrect.")
+    exit()
+
+# Capture video
+cap = cv2.VideoCapture(video_path)
+if not cap.isOpened():
+    print("Error: Could not open video.")
+    exit()
+
 current_lat, current_lon = get_current_location()
 
 while cap.isOpened():
@@ -38,8 +53,10 @@ while cap.isOpened():
     if not ret:
         break
 
+    # Display video frame
+    cv2.imshow('Video', frame)
 
-    key = cv2.waitKey(1) & 0xFF
+    key = cv2.waitKey(30) & 0xFF
     if key == ord('n'):  
         destination_name = input("Enter destination name: ")
         destination_lat, destination_lon = get_destination_coordinates(destination_name)
