@@ -6,10 +6,28 @@ import geocoder
 from queue import Queue
 from geopy.geocoders import Nominatim
 import re
+import speech_recognition as sr
 
 # Global speech queue
 speech_queue = Queue()
-
+recognizer = sr.Recognizer()
+def get_voice_input():
+    """Get voice input from the user"""
+    with sr.Microphone() as source:
+        print("Listening for destination...")
+        audio = recognizer.listen(source)
+        time.sleep(5)
+        try:
+            text = recognizer.recognize_google(audio)
+            print(f"You said: {text}")
+            return text
+        except sr.UnknownValueError:
+            print("Sorry, I didn't understand that.")
+            return None
+        except sr.RequestError:
+            print("Sorry, there was an error with the speech recognition service.")
+            return None
+        
 def speech_thread():
     """Thread to handle all text-to-speech operations"""
     speech_buffer = []  # Array to store messages temporarily
@@ -100,6 +118,7 @@ def navigation_thread(destination_lat, destination_lon, stop_event):
             # Only speak the first direction
             if directions:
                 instruction = clean_html(directions[0]['html_instructions'])
+                print(1, instruction)
                 distance = directions[0].get('distance', {}).get('text', 'Unknown distance')
                 speech_queue.put(f"{instruction}. You will need to travel {distance}.")
             
@@ -119,7 +138,13 @@ def main():
     print("GPS Navigation System")
     print("---------------------")
     
-    destination_name = input("Enter destination name: ")
+    #speech_queue.put("Please say your destination.")
+    destination_name = None
+    while destination_name is None:
+        destination_name = get_voice_input()
+        time.sleep(10)
+        if destination_name is None:
+            speech_queue.put("I didn't catch that. Please try again.")
     
     try:
         # Announce that we're searching
@@ -140,12 +165,12 @@ def main():
         )
         nav_thread.start()
         
-        print("Navigation started. Enter 'stop' to end navigation.")
+        print("Navigation started. Say 'stop' to end navigation.")
         
         # Main loop for user input
         while True:
-            user_input = input("> ")
-            if user_input.lower() == 'stop':
+            user_input = get_voice_input()
+            if user_input and user_input.lower() == 'stop':
                 stop_event.set()
                 speech_queue.put("Navigation stopped.")
                 time.sleep(20)  # Give time for the last message to be spoken
@@ -165,4 +190,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
