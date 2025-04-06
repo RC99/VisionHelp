@@ -1,79 +1,3 @@
-'''import requests
-import threading
-import geocoder
-from geopy.geocoders import Nominatim
-import re
-import time
-from playsound import playsound  # For audio playback
-import pyttsx3
-
-engine = pyttsx3.init()
-engine.setProperty('rate', 200)  # Speed of speech
-engine.setProperty('volume', 0.9)  # Volume (0.0 to 1.0)
-
-# --- Helper Functions ---
-def parse_distance(distance_dict):
-    """Extract numerical distance in meters"""
-    return distance_dict.get('value', 0) if distance_dict else 0
-
-# --- ElevenLabs TTS Function ---
-def elevenlabs_tts(api_key, text, voice_id, model_id, output_format):
-    """Send text to ElevenLabs API for speech synthesis"""
-    url = "https://api.openmind.org/api/core/elevenlabs/tts"
-    payload = {
-        "text": text,
-        "voice_id": voice_id,
-        "model_id": model_id,
-        "output_format": output_format
-    }
-    headers = {
-        "x-api-key": api_key,
-        "Content-Type": "application/json"
-    }
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        print(response)
-        if response.status_code == 200:
-            # Assuming the API returns a URL or audio file data
-            audio_url = response.json().get("audio_url")
-            print(f"Audio generated: {audio_url}")
-            return audio_url
-        else:
-            print(f"ElevenLabs TTS error: {response.text}")
-            return None
-    except Exception as e:
-        print(f"ElevenLabs TTS request failed: {e}")
-        return None
-
-# --- Core Navigation Functions ---
-
-def get_route_data(origin, destination, api_key):
-    """Fetch route details from Google Directions API"""
-    base_url = "https://maps.googleapis.com/maps/api/directions/json"
-    params = {
-        'origin': f"{origin[0]},{origin[1]}",
-        'destination': f"{destination[0]},{destination[1]}",
-        'key': api_key
-    }
-    
-    try:
-        response = requests.get(base_url, params=params)
-        data = response.json()
-        
-        if data['status'] == 'OK':
-            leg = data['routes'][0]['legs'][0]
-            return {
-                'duration': leg['duration']['text'],
-                'steps': leg['steps'],
-                'remaining_distance': parse_distance(leg['distance'])
-            }
-        return None
-    except Exception as e:
-        print(f"API error: {e}")
-        return None
-'''
-# --- Main Navigation Handler ---
 import pyttsx3
 import requests
 import threading
@@ -88,11 +12,6 @@ speech_queue = Queue()
 
 def speech_thread():
     """Thread to handle all text-to-speech operations"""
-    engine = pyttsx3.init()
-    # Configure voice properties
-    engine.setProperty('rate', 200)  # Speed of speech
-    engine.setProperty('volume', 0.9)  # Volume (0.0 to 1.0)
-    
     speech_buffer = []  # Array to store messages temporarily
     
     while True:
@@ -104,25 +23,32 @@ def speech_thread():
                     return
                 speech_buffer.append(text)
             
-            # Process messages in the buffer every 10 seconds
+            # Process messages in the buffer
             if speech_buffer:
                 combined_text = " ".join(speech_buffer)
                 print(f"Speaking: {combined_text}")  # Debug print
+                
+                # Create a new engine instance for each speech operation
+                engine = pyttsx3.init()
+                engine.setProperty('rate', 200)
+                engine.setProperty('volume', 0.9)
+                
                 engine.say(combined_text)
                 engine.runAndWait()
+                
+                # Clean up the engine
+                del engine
+                
                 speech_buffer.clear()  # Clear buffer after speaking
             
             time.sleep(15)  # Wait before checking the queue again
             
         except Exception as e:
             print(f"Speech error: {e}")
-            # If an error occurs, try to reset the engine
-            try:
-                engine = pyttsx3.init()
-                engine.setProperty('rate', 200)
-                engine.setProperty('volume', 0.9)
-            except Exception as e2:
-                print(f"Failed to reset TTS engine: {e2}")
+            # No need to reset - we'll create a new instance next time
+            time.sleep(1)  # Brief pause after an error
+
+
 
 def get_current_location():
     """Get current location using geocoder"""
@@ -222,7 +148,7 @@ def main():
             if user_input.lower() == 'stop':
                 stop_event.set()
                 speech_queue.put("Navigation stopped.")
-                time.sleep(2)  # Give time for the last message to be spoken
+                time.sleep(20)  # Give time for the last message to be spoken
                 speech_queue.put("STOP")
                 print("Navigation stopped.")
                 break
@@ -230,7 +156,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         speech_queue.put("An error occurred. Please try again.")
-        time.sleep(2)  # Give time for the error message to be spoken
+        time.sleep(20)  # Give time for the error message to be spoken
         speech_queue.put("STOP")
     
     # Wait for speech thread to finish
@@ -239,24 +165,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    '''
-    ELEVENLABS_API_KEY = ""
-    
-    VOICE_ID = "pNInz6obpgDQGcFmaJgB"
-    OUTPUT_FORMAT = "mp3_22050_32"
-    MODEL_ID = "eleven_turbo_v2"
-    
-    DESTINATION = "San Francisco"
-    
-    speech_buffer = []
-    speech_lock = threading.Lock()
-    
-    #nav_stop_event = start_navigation(speech_buffer, GOOGLE_API_KEY, ELEVENLABS_API_KEY, VOICE_ID, MODEL_ID, OUTPUT_FORMAT, DESTINATION, speech_lock)
 
-    try:
-        while True:
-            time.sleep(1)  # Keep the program running until interrupted
-            
-    except KeyboardInterrupt:
-        #nav_stop_event.set()
-        print("Navigation stopped.")'''

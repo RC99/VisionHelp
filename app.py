@@ -21,7 +21,7 @@ def speak(text):
     speech_queue.put(text)
 
 # Main video processing loop
-video_path = '/Users/reetvikchatterjee/Desktop/VisionHelp/testfr.mp4'  # Replace with your video path
+video_path = '/Users/reetvikchatterjee/Desktop/VisionHelp/test.mp4'  # Replace with your video path
 cap = cv2.VideoCapture(video_path)
 
 def get_threshold(object_name, default_threshold=20):
